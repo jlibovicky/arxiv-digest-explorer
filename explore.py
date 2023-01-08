@@ -23,6 +23,16 @@ class color:
    END = '\033[0m'
 
 
+KEYWORDS = [
+    "translation", "multilingual", "cross-lingual", "multimodal",
+    "tokenization", "language-vision", "vision-language"]
+
+
+RE_KEYWORDS = [
+    re.compile(kwrd, re.IGNORECASE)
+    for kwrd in KEYWORDS]
+
+
 def parse(file_handle):
     items = []
     current_id = None
@@ -105,6 +115,13 @@ def print_wrapped(string):
         print(line)
 
 
+def highlight_keywords(text):
+    for regex in RE_KEYWORDS:
+        if regex.search(text):
+            text = regex.sub(color.RED + "\\g<0>" + color.END, text)
+    return text
+
+
 def main():
     parser = argparse.ArgumentParser(__doc__)
     parser.add_argument("input", type=argparse.FileType("r"))
@@ -124,13 +141,13 @@ def main():
             date_parse(item['date']).strftime("%d.%m.%Y, %H:%M:%S"))
         print()
         print(color.BOLD + "Title:" + color.END)
-        print_wrapped(item['title'])
+        print_wrapped(highlight_keywords(item['title']))
         print()
         print(color.BOLD + "Authors:" + color.END)
         print_wrapped(item['authors'])
         print()
         print(color.BOLD + "Abstract:" + color.END)
-        print_wrapped(item['abstract'])
+        print_wrapped(highlight_keywords(item['abstract']))
         print()
         answer = input("Do you want to read this? y/n? ")
         while answer not in ["y", "n"]:
