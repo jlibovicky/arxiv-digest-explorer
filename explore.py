@@ -9,6 +9,8 @@ import re
 import textwrap
 import webbrowser
 
+import arxiv
+
 
 class color:
    PURPLE = '\033[95m'
@@ -31,6 +33,31 @@ KEYWORDS = [
 RE_KEYWORDS = [
     re.compile(kwrd, re.IGNORECASE)
     for kwrd in KEYWORDS]
+
+
+def retrieve_recent(start_date):
+    search = arxiv.Search(
+      query = "cs.CL",
+      max_results = 40,
+      sort_by = arxiv.SortCriterion.LastUpdatedDate
+    )
+
+    output = []
+    for result in search.results():
+        if result.updated <= start_date:
+            break
+
+        output.append({
+            "title": result.title,
+            "authors": ", ".join(aut.name for aut in result.authors),
+            "arxiv_id": result.entry_id.split("/")[-1],
+            "abstract": result.summary,
+            "date": result.updated.isoformat(),
+            "url": result.entry_id.replace("http", "https")
+        })
+
+    output.reverse()
+    return output
 
 
 def parse(file_handle):
@@ -124,13 +151,19 @@ def highlight_keywords(text):
 
 def main():
     parser = argparse.ArgumentParser(__doc__)
-    parser.add_argument("input", type=argparse.FileType("r"))
+    parser.add_argument("--start-date", type=str, default=None)
     args = parser.parse_args()
+
+    if args.start_date is None:
+        with open("last_date") as f_date:
+            start_date = date_parse(f_date.read())
+    else:
+        start_date = date_parse(args.start_date)
+    items = retrieve_recent(start_date)
 
     positive = []
     negative = []
 
-    items = parse(args.input)
     for i, item in enumerate(items):
         os.system('clear')
         print(f"{i + 1} / {len(items)}")
@@ -158,6 +191,9 @@ def main():
             webbrowser.open(item['url'], new=2, autoraise=False)
         elif answer == "n":
             negative.append(item)
+
+        with open("last_date", "w") as f_last:
+            print(item["date"], file=f_last)
 
     with open("positive.jsonl", "a") as f_positive:
         for item in positive:
