@@ -10,6 +10,8 @@ import textwrap
 import webbrowser
 
 import arxiv
+import pytextrank
+import spacy
 
 
 class color:
@@ -154,6 +156,9 @@ def main():
     parser.add_argument("--start-date", type=str, default=None)
     args = parser.parse_args()
 
+    nlp = spacy.load("en_core_web_sm")
+    nlp.add_pipe("textrank")
+
     if args.start_date is None:
         with open("last_date") as f_date:
             start_date = date_parse(f_date.read())
@@ -179,6 +184,14 @@ def main():
         print(color.BOLD + "Authors:" + color.END)
         print_wrapped(item['authors'])
         print()
+
+        doc = nlp(item["abstract"])
+        keywords = [phrase.text for phrase in doc._.phrases[:5] if phrase.rank > 0.09]
+        if keywords:
+            print(color.BOLD + "Keywords:" + color.END)
+            print_wrapped(", ".join(keywords))
+            print()
+
         print(color.BOLD + "Abstract:" + color.END)
         print_wrapped(highlight_keywords(item['abstract']))
         print()
