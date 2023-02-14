@@ -4,14 +4,16 @@
 import argparse
 from dateutil.parser import parse as date_parse
 import json
+import logging
 import os
 import re
 import textwrap
 import webbrowser
 
 import arxiv
-import pytextrank
-import spacy
+
+
+logging.basicConfig(format='%(asctime)s %(message)s', level=logging.INFO)
 
 
 class color:
@@ -40,7 +42,7 @@ RE_KEYWORDS = [
 def retrieve_recent(start_date):
     search = arxiv.Search(
       query = "cs.CL",
-      max_results = 40,
+      max_results = 150,
       sort_by = arxiv.SortCriterion.LastUpdatedDate
     )
 
@@ -156,15 +158,15 @@ def main():
     parser.add_argument("--start-date", type=str, default=None)
     args = parser.parse_args()
 
-    nlp = spacy.load("en_core_web_sm")
-    nlp.add_pipe("textrank")
-
     if args.start_date is None:
         with open("last_date") as f_date:
             start_date = date_parse(f_date.read())
     else:
         start_date = date_parse(args.start_date)
+    logging.info("The youngest checked paper was %s.", start_date)
+    logging.info("Retrieving abstracts from arXiv.")
     items = retrieve_recent(start_date)
+    logging.info("Done: present the abstracts.")
 
     positive = []
     negative = []
@@ -184,13 +186,6 @@ def main():
         print(color.BOLD + "Authors:" + color.END)
         print_wrapped(item['authors'])
         print()
-
-        doc = nlp(item["abstract"])
-        keywords = [phrase.text for phrase in doc._.phrases[:5] if phrase.rank > 0.09]
-        if keywords:
-            print(color.BOLD + "Keywords:" + color.END)
-            print_wrapped(", ".join(keywords))
-            print()
 
         print(color.BOLD + "Abstract:" + color.END)
         print_wrapped(highlight_keywords(item['abstract']))
