@@ -8,6 +8,7 @@ import logging
 import os
 import re
 import textwrap
+import time
 import webbrowser
 
 import arxiv
@@ -40,17 +41,35 @@ RE_KEYWORDS = [
 
 
 def retrieve_recent(start_date):
-    search = arxiv.Search(
-      query = "cs.CL",
-      max_results = 150,
-      sort_by = arxiv.SortCriterion.LastUpdatedDate
-    )
+    retrieve_count = 100
+    found_recent = None
+
+    while found_recent is None:
+        search = arxiv.Search(
+          query = "cs.CL",
+          max_results = retrieve_count,
+          sort_by = arxiv.SortCriterion.LastUpdatedDate
+        )
+
+        found_recent = []
+        for result in search.results():
+            if result.updated <= start_date:
+                break
+            found_recent.append(result)
+
+        if retrieve_count >= 1500:
+            logging.info("Reached maximum arXiv retrieval limit.")
+            break
+        if len(found_recent) == retrieve_count:
+            logging.info("There is more recent pre-prints than retrieved, wait 3s.")
+            time.sleep(3)
+            retrieve_count += 100
+            found_recent = None
+
+    assert found_recent is not None
 
     output = []
-    for result in search.results():
-        if result.updated <= start_date:
-            break
-
+    for result in found_recent:
         output.append({
             "title": result.title,
             "authors": ", ".join(aut.name for aut in result.authors),
@@ -168,9 +187,6 @@ def main():
     items = retrieve_recent(start_date)
     logging.info("Done: present the abstracts.")
 
-    positive = []
-    negative = []
-
     for i, item in enumerate(items):
         os.system('clear')
         print(f"{i + 1} / {len(items)}")
@@ -195,20 +211,15 @@ def main():
             answer = input("Say 'y' or 'n'. ")
 
         if answer == "y":
-            positive.append(item)
             webbrowser.open(item['url'], new=2, autoraise=False)
+            with open("positive.jsonl", "a") as f_positive:
+                print(json.dumps(item), file=f_positive)
         elif answer == "n":
-            negative.append(item)
+            with open("negative.jsonl", "a") as f_negative:
+                print(json.dumps(item), file=f_negative)
 
         with open("last_date", "w") as f_last:
             print(item["date"], file=f_last)
-
-    with open("positive.jsonl", "a") as f_positive:
-        for item in positive:
-            print(json.dumps(item), file=f_positive)
-    with open("negative.jsonl", "a") as f_negative:
-        for item in negative:
-            print(json.dumps(item), file=f_negative)
 
 
 if __name__ == "__main__":
