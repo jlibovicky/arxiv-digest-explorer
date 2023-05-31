@@ -1,3 +1,2 @@
 arxiv
-spacy
-pytextrank
+python-dateutil

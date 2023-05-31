@@ -27,7 +27,7 @@ def main():
     for line in args.positive:
         item = json.loads(line.strip())
         positive_ids.add(item["arxiv_id"])
-        abstracts.append(item["abstract"])
+        abstracts.append(item["title"] + ". " +item["abstract"])
         labels.append(True)
 
     logging.info("Load negative instances from '%s'.", args.negative)
@@ -39,7 +39,9 @@ def main():
             labels.append(False)
 
     scores = []
-    for i in range(100):
+    conf_matrices = []
+    logging.info("Train model on 500 random splits.")
+    for i in range(500):
         x_train, x_test, y_train, y_test = train_test_split(abstracts, labels)
 
         vectorizer = TfidfVectorizer(stop_words='english')
@@ -53,11 +55,10 @@ def main():
         score = f1_score(y_test, y_pred)
         scores.append(score)
 
-        if i == 0:
-            matrix = confusion_matrix(y_test, y_pred)
-            logging.info("Confusions matrix\n%s", matrix)
+        conf_matrices.append(confusion_matrix(y_test, y_pred))
 
     logging.info("F1 score: %.3f +-/ %.3f", np.mean(scores), np.std(scores))
+    logging.info("Confusions matrix\n%s", np.mean(conf_matrices, axis=0))
     logging.info("Done.")
 
 
