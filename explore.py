@@ -172,10 +172,38 @@ def highlight_keywords(text):
     return text
 
 
+def score_and_filter(items, model, tokenizer, threshold):
+    import torch.nn.functional as F
+    filtered = []
+    for item in items:
+        abstract_text = item["abstract"].replace("\n", " ")
+        prompt = f"Title: {item['title']}. Abstract: {abstract_text}."
+        tokenized = tokenizer(prompt, return_tensors="pt")
+        score = F.softmax(model(**tokenized)[0], dim=1)[0, 1]
+        item["score"] = score.item()
+        if score.item() >= threshold:
+            filtered.append(item)
+    return filtered
+
+
 def main():
     parser = argparse.ArgumentParser(__doc__)
     parser.add_argument("--start-date", type=str, default=None)
+    parser.add_argument("--model", type=str, default=None)
+    parser.add_argument("--threshold", type=float, default=0.01)
     args = parser.parse_args()
+
+    model = None
+    tokenizer = None
+    if args.model is not None:
+        logging.info("Import Transformers and Torch.")
+        from transformers import AutoTokenizer, AutoModelForSequenceClassification
+        import torch.nn.functional as F
+        logging.info("Load the scoring model.")
+        tokenizer = AutoTokenizer.from_pretrained(args.model)
+        model = AutoModelForSequenceClassification.from_pretrained(args.model)
+        model.eval()
+        logging.info("Loaded.")
 
     if args.start_date is None:
         with open("last_date") as f_date:
@@ -185,7 +213,14 @@ def main():
     logging.info("The youngest checked paper was %s.", start_date)
     logging.info("Retrieving abstracts from arXiv.")
     items = retrieve_recent(start_date)
-    logging.info("Done: present the abstracts.")
+    logging.info("Downloading finished, retrieved %d abstracts.", len(items))
+
+    if args.model is not None:
+        logging.info("Score the abstracts.")
+        items = score_and_filter(items, model, tokenizer, args.threshold)
+        logging.info("Scoring finished, %d abstracts left.", len(items))
+    logging.info("Present the abstracts.")
+    import ipdb; ipdb.set_trace()
 
     for i, item in enumerate(items):
         os.system('clear')
@@ -202,6 +237,9 @@ def main():
         print(color.BOLD + "Authors:" + color.END)
         print_wrapped(item['authors'])
         print()
+        if "score" in item:
+            print(color.BOLD + "Score:" + color.END + f"{100 * item['score']:.0f}%")
+            print()
 
         print(color.BOLD + "Abstract:" + color.END)
         print_wrapped(highlight_keywords(item['abstract']))
