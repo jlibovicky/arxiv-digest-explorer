@@ -220,7 +220,6 @@ def main():
         items = score_and_filter(items, model, tokenizer, args.threshold)
         logging.info("Scoring finished, %d abstracts left.", len(items))
     logging.info("Present the abstracts.")
-    import ipdb; ipdb.set_trace()
 
     for i, item in enumerate(items):
         os.system('clear')
