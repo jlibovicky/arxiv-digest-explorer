@@ -237,7 +237,7 @@ def main():
         print_wrapped(item['authors'])
         print()
         if "score" in item:
-            print(color.BOLD + "Score:" + color.END + f"{100 * item['score']:.0f}%")
+            print(color.BOLD + "Score: " + color.END + f"{100 * item['score']:.0f}%")
             print()
 
         print(color.BOLD + "Abstract:" + color.END)
