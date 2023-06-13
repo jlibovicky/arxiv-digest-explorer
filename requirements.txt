@@ -1,2 +1,5 @@
 arxiv
 python-dateutil
+torch
+transformers
+pyzotero
