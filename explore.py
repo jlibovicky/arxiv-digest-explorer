@@ -178,7 +178,7 @@ def score_and_filter(items, model, tokenizer, threshold):
     for item in items:
         abstract_text = item["abstract"].replace("\n", " ")
         prompt = f"Title: {item['title']}. Abstract: {abstract_text}."
-        tokenized = tokenizer(prompt, return_tensors="pt")
+        tokenized = tokenizer(prompt, return_tensors="pt", truncation=True)
         score = F.softmax(model(**tokenized)[0], dim=1)[0, 1]
         item["score"] = score.item()
         if score.item() >= threshold:
