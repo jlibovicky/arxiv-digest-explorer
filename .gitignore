@@ -127,3 +127,15 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+zotero_api_key.txt
+zotero_collection_id.txt
+zotero_library_id.txt
+all_negative.jsonl
+all_positive.jsonl
+home_negative.jsonl
+home_positive.jsonl
+mini_negative.jsonl
+mini_positive.jsonl
+negative.jsonl
+positive.jsonl
+last_date
