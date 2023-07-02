@@ -107,6 +107,9 @@ def main():
     positive_abstracts, positive_ids = load_abstracts(args.positive)
     negative_abstracts, _ = load_abstracts(args.negative, exclude=positive_ids)
 
+    logging.info("Positive abstracts: %d", len(positive_abstracts))
+    logging.info("Negative abstracts: %d", len(negative_abstracts))
+
     logging.info("Creating datasets.")
     abstracts_train, abstracts_test, labels_train, labels_test = train_test_split(
         positive_abstracts + negative_abstracts,
@@ -115,6 +118,10 @@ def main():
 
     abstracts_train, abstracts_val, labels_train, labels_val = train_test_split(
         abstracts_train, labels_train, test_size=0.2, random_state=938)
+
+    logging.info("Train set: %d examples", len(abstracts_train))
+    logging.info("Validation set: %d examples", len(abstracts_val))
+    logging.info("Test set: %d examples", len(abstracts_test))
 
     logging.info("Initialize tokenizer and tokenized datasets.")
     tokenizer = AutoTokenizer.from_pretrained(args.model_name)
