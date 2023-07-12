@@ -83,81 +83,6 @@ def retrieve_recent(start_date):
     return output
 
 
-def parse(file_handle):
-    items = []
-    current_id = None
-    current_date = None
-    current_title = None
-    current_authors = None
-    current_abstract = None
-    after_categories = False
-    current_url = None
-    in_abstract = False
-
-    for _ in range(13):
-        file_handle.readline()
-
-    for line in file_handle:
-        line = line.rstrip()
-        if current_title is None:
-            if (line == r"\\" or
-                not line):
-                continue
-            elif line.startswith("Date:"):
-                current_date = date_parse(
-                    re.sub("GMT.*", "GMT", line[11:])).isoformat()
-            elif line.startswith("arXiv:"):
-                current_id = line[6:16]
-            elif line.startswith("Title: "):
-                current_title = line[7:]
-        elif current_authors is None:
-            if line.startswith("Authors: "):
-                current_authors = line[9:]
-            else:
-                current_title += " " + line.lstrip()
-        elif not after_categories:
-            if line.startswith("Categories:"):
-                after_categories = True
-            else:
-                current_authors += ", " + line.lstrip()
-        elif not in_abstract and current_abstract is None:
-            if line == r"\\":
-                in_abstract = True
-        elif in_abstract:
-            if current_abstract is None:
-                current_abstract = line.lstrip()
-            elif line.startswith(r"\\"):
-                current_url = line[5:37]
-                in_abstract = False
-            else:
-                current_abstract += " " + line
-        elif (line.startswith("------------------") or
-              line.startswith("%-%-%-%-%-%-%-%-%") or
-              line.startswith("%%--%%--%%--%%--%%--%%--")):
-            items.append({
-                "arxiv_id": current_id,
-                "date": current_date,
-                "title": current_title,
-                "authors": current_authors,
-                "url": current_url,
-                "abstract": current_abstract
-            })
-            if line.startswith("%%--%%--%%--%%--%%--%%--"):
-                break
-            current_id = None
-            current_date = None
-            current_title = None
-            current_authors = None
-            current_abstract = None
-            after_categories = False
-            current_url = None
-            in_abstract = False
-        else:
-            raise RuntimeError("This should no happen.")
-
-    return items
-
-
 def print_wrapped(string):
     for line in textwrap.wrap(
             string, width=80,
@@ -237,6 +162,8 @@ def main():
         print_wrapped(item['authors'])
         print()
         if "score" in item:
+            score_start_color = ""
+            score_end_color = ""
             print(color.BOLD + "Score: " + color.END + f"{100 * item['score']:.0f}%")
             print()
 
