@@ -1,4 +1,6 @@
 arxiv
+bibtexparser
+pylatexenc
 python-dateutil
 torch
 transformers
