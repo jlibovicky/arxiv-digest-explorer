@@ -76,7 +76,8 @@ def retrieve_recent(start_date):
             "arxiv_id": result.entry_id.split("/")[-1],
             "abstract": result.summary,
             "date": result.updated.isoformat(),
-            "url": result.entry_id.replace("http", "https")
+            "url": result.entry_id.replace("http", "https"),
+            "comment": result.comment
         })
 
     output.reverse()
@@ -161,6 +162,10 @@ def main():
         print(color.BOLD + "Authors:" + color.END)
         print_wrapped(item['authors'])
         print()
+        if "comment" in item and item["comment"]:
+            print(color.BOLD + "Comment:" + color.END)
+            print_wrapped(item['comment'])
+            print()
         if "score" in item:
             score_start_color = ""
             score_end_color = ""
