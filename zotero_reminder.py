@@ -81,7 +81,7 @@ def main():
 
     logging.info("Fetching items from the Zotero library.")
     items = zot.everything(zot.collection_items(
-        collection_id, itemType="conferencePaper || journalArticle || report"))
+        collection_id, itemType="conferencePaper || journalArticle || report || preprint"))
     logging.info(f"Found {len(items)} items, sampling {args.sample_papers}.")
 
     items = random.sample(items, args.sample_papers)
