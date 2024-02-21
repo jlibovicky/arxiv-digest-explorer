@@ -6,6 +6,7 @@ from dateutil.parser import parse as date_parse
 import json
 import logging
 import os
+import pickle
 import re
 import textwrap
 import time
@@ -91,10 +92,25 @@ def print_wrapped(string):
         print(line)
 
 
-def highlight_keywords(text):
+def highlight_keywords(text, keep_bold_yellow=False):
     for regex in RE_KEYWORDS:
         if regex.search(text):
-            text = regex.sub(color.RED + "\\g<0>" + color.END, text)
+            text = regex.sub(
+                color.RED + "\\g<0>" +
+                (color.YELLOW if keep_bold_yellow else color.END), text)
+    return text
+
+
+def highlight_tf_idf(text, vectorizer, top_n=10):
+    # Get top n tf-idf words
+    tfidf = vectorizer.transform([text])
+    feature_names = vectorizer.get_feature_names_out()
+    topn_ids = tfidf.indices[tfidf.data.argsort()[-top_n:]]
+    topn_words = [feature_names[i] for i in topn_ids]
+
+    # Highlight them with yellow
+    for word in topn_words:
+        text = re.sub(r"\b" + word + r"\b", color.DARKCYAN + word + color.END, text)
     return text
 
 
@@ -117,6 +133,9 @@ def main():
     parser.add_argument("--start-date", type=str, default=None)
     parser.add_argument("--model", type=str, default=None)
     parser.add_argument("--threshold", type=float, default=0.01)
+    parser.add_argument(
+        "--tfidf", default=None, type=str,
+        help="Path to the TF-IDF model vectorizer.")
     args = parser.parse_args()
 
     model = None
@@ -130,6 +149,15 @@ def main():
         model = AutoModelForSequenceClassification.from_pretrained(args.model)
         model.eval()
         logging.info("Loaded.")
+
+    vectorizer = None
+    if args.tfidf is not None:
+        logging.info("Import scikit-learn.")
+        from sklearn.feature_extraction.text import TfidfVectorizer
+        logging.info("Load the TF-IDF vectorizer.")
+        with open(args.tfidf, "rb") as f_tfidf:
+            vectorizer = pickle.load(f_tfidf)
+            logging.info("Loaded.")
 
     if args.start_date is None:
         with open("last_date") as f_date:
@@ -157,7 +185,9 @@ def main():
             date_parse(item['date']).strftime("%d.%m.%Y, %H:%M:%S"))
         print()
         print(color.BOLD + "Title:" + color.END)
-        print_wrapped(highlight_keywords(item['title']))
+        print_wrapped(
+            highlight_keywords(color.YELLOW + color.BOLD + item['title'],
+                               keep_bold_yellow=True) + color.END)
         print()
         print(color.BOLD + "Authors:" + color.END)
         print_wrapped(item['authors'])
@@ -173,7 +203,10 @@ def main():
             print()
 
         print(color.BOLD + "Abstract:" + color.END)
-        print_wrapped(highlight_keywords(item['abstract']))
+        abstract = item['abstract']
+        if vectorizer is not None:
+            abstract = highlight_tf_idf(abstract, vectorizer)
+        print_wrapped(highlight_keywords(abstract))
         print()
         answer = input("Do you want to read this? y/n? ")
         while answer not in ["y", "n"]:

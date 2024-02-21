@@ -96,11 +96,12 @@ def main():
     parser.add_argument("positive", type=argparse.FileType('r'))
     parser.add_argument("negative", type=argparse.FileType('r'))
     parser.add_argument("--positive-weight", type=int, default=5)
-    parser.add_argument("--learning-rate", type=float, default=1e-6)
-    parser.add_argument("--epochs", type=int, default=4)
-    parser.add_argument("--warmup-steps", type=int, default=10)
+    parser.add_argument("--learning-rate", type=float, default=5e-5)
+    parser.add_argument("--epochs", type=int, default=20)
+    parser.add_argument("--warmup-steps", type=int, default=100)
     parser.add_argument("--weight-decay", type=float, default=0.1)
     parser.add_argument("--model-name", type=str, default="distilroberta-base")
+    parser.add_argument("--output-dir", type=str, default="./scorer")
     args = parser.parse_args()
 
     logging.info("Loading abstracts.")
@@ -137,7 +138,7 @@ def main():
 
     data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
     training_args = TrainingArguments(
-        output_dir='./scorer',
+        output_dir=args.output_dir,
         num_train_epochs=args.epochs,
         per_device_train_batch_size=32,
         per_device_eval_batch_size=256,
@@ -146,7 +147,7 @@ def main():
         weight_decay=args.weight_decay,
         report_to="tensorboard",
         #logging_dir='./logs',
-        logging_steps=10,
+        logging_steps=50,
         load_best_model_at_end=True,
         evaluation_strategy="steps",
         save_strategy="steps",
@@ -165,8 +166,6 @@ def main():
     )
 
     trainer.train()
-    #test_res = trainer.evaluate(test_dataset)
-    #print(test_res["eval_f1"])
 
     test_dataloader = DataLoader(
         test_dataset, collate_fn=data_collator, batch_size=64)
