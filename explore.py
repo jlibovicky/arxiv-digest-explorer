@@ -42,8 +42,14 @@ RE_KEYWORDS = [
 
 
 def retrieve_recent(start_date):
-    retrieve_count = 100
+    retrieve_count = 500
     found_recent = None
+
+    client = arxiv.Client(
+        page_size=500,
+        num_retries=5,
+        delay_seconds=5.0,
+    )
 
     while found_recent is None:
         search = arxiv.Search(
@@ -53,18 +59,18 @@ def retrieve_recent(start_date):
         )
 
         found_recent = []
-        for result in search.results():
+        for result in client.results(search):
             if result.updated <= start_date:
                 break
             found_recent.append(result)
 
-        if retrieve_count >= 1500:
+        if retrieve_count >= 10000:
             logging.info("Reached maximum arXiv retrieval limit.")
             break
         if len(found_recent) == retrieve_count:
             logging.info("There is more recent pre-prints than retrieved, wait 3s.")
             time.sleep(3)
-            retrieve_count += 100
+            retrieve_count += 500
             found_recent = None
 
     assert found_recent is not None
