@@ -1,16 +1,25 @@
 #!/usr/bin/env python3
+"""Show a random sample of old papers and notes from a Zotero collection."""
 
 import argparse
+import html
 import logging
 import os
 import random
 import sys
 import webbrowser
 
-from pyzotero import zotero
-
 
 logging.basicConfig(format='%(asctime)s %(message)s', level=logging.INFO)
+
+
+ITEM_TYPES = "conferencePaper || journalArticle || report || preprint"
+
+CREDENTIAL_FILES = {
+    "api_key": "zotero_api_key.txt",
+    "library_id": "zotero_library_id.txt",
+    "collection_id": "zotero_collection_id.txt",
+}
 
 
 # Header that imports Bootstrap CSS
@@ -40,6 +49,10 @@ FOOTER = """
 """
 
 
+class ZoteroError(RuntimeError):
+    """Something is missing or the Zotero API did not cooperate."""
+
+
 def format_authors(authors):
     """Format author names for display"""
     author_list = []
@@ -50,8 +63,90 @@ def format_authors(authors):
     return ", ".join(author_list)
 
 
+def load_credentials(directory="."):
+    """Read the API key, library and collection ids from the text files."""
+    credentials = {}
+    for name, filename in CREDENTIAL_FILES.items():
+        path = os.path.join(directory, filename)
+        if not os.path.exists(path):
+            raise ZoteroError(f"{filename} not found.")
+        with open(path, "r") as f_credential:
+            credentials[name] = f_credential.read().strip()
+    return credentials
+
+
+def connect(directory="."):
+    """Open a Zotero client and tell which collection to sample from."""
+    try:
+        from pyzotero import zotero
+    except ImportError as exc:  # pyzotero is optional for the rest of the app
+        raise ZoteroError(
+            "pyzotero is not installed, run 'pip install pyzotero'.") from exc
+
+    credentials = load_credentials(directory)
+    zot = zotero.Zotero(
+        credentials["library_id"], 'user', credentials["api_key"])
+    return zot, credentials["collection_id"]
+
+
+def sample_papers(count=3, directory="."):
+    """Return `count` random papers of the collection with their notes."""
+    zot, collection_id = connect(directory)
+
+    logging.info("Fetching items from the Zotero library.")
+    items = zot.everything(
+        zot.collection_items(collection_id, itemType=ITEM_TYPES))
+    logging.info("Found %d items, sampling %d.", len(items), count)
+    if not items:
+        return []
+
+    papers = []
+    for item in random.sample(items, min(count, len(items))):
+        data = item['data']
+        notes = zot.children(item['key'], itemType="note")
+        papers.append({
+            "key": item['key'],
+            "title": data.get('title', ''),
+            "url": data.get('url', ''),
+            "authors": format_authors(data.get('creators', [])),
+            "tags": [tag['tag'] for tag in data.get('tags', [])],
+            "abstract": data.get('abstractNote', ''),
+            # Zotero notes are HTML written by the user themselves.
+            "note_html": notes[0]['data']['note'] if notes else "",
+        })
+    return papers
+
+
+def papers_to_html(papers, output):
+    """Write the standalone Bootstrap page the CLI opens in a browser."""
+    print(HEADER, file=output)
+    for paper in papers:
+        title = html.escape(paper["title"])
+        url = html.escape(paper["url"], quote=True)
+        print(f"<h1><a href='{url}'>{title}</a></h1>", file=output)
+        print(f"<p><b>{html.escape(paper['authors'])}</b></p>", file=output)
+
+        print("<p>", file=output)
+        for tag in paper["tags"]:
+            print(f"<span class='badge badge-primary'>{html.escape(tag)}</span>",
+                  file=output)
+        print("</p>", file=output)
+
+        if paper["abstract"]:
+            print('<div class="abstract">', file=output)
+            print(f"<b>Abstract:</b> {html.escape(paper['abstract'])}</div>",
+                  file=output)
+
+        if paper["note_html"]:
+            print('<div class="note">', file=output)
+            print(f"<b>My notes:</b> {paper['note_html']}", file=output)
+            print("</div>", file=output)
+        print("<hr />", file=output)
+    print(FOOTER, file=output)
+
+
 def main():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(__doc__)
     parser.add_argument("output", type=argparse.FileType('w'), default=sys.stdout)
     parser.add_argument("--sample-papers", type=int, default=3)
     parser.add_argument(
@@ -59,66 +154,22 @@ def main():
         help="Do not open the output file in a browser.")
     args = parser.parse_args()
 
-    logging.info("Loading Zotero API key and library ID.")
-    if not os.path.exists("zotero_api_key.txt"):
-        logging.error("zotero_api_key.txt not found.")
-        return
-    with open("zotero_api_key.txt", "r") as f:
-        api_key = f.read().strip()
-    if not os.path.exists("zotero_library_id.txt"):
-        logging.error("zotero_library_id.txt not found.")
-        return
-    with open("zotero_library_id.txt", "r") as f:
-        library_id = f.read().strip()
-    if not os.path.exists("zotero_collection_id.txt"):
-        logging.error("zotero_collection_id.txt not found.")
-        return
-    with open("zotero_collection_id.txt", "r") as f:
-        collection_id = f.read().strip()
-
-    logging.info("Connecting to Zotero API.")
-    zot = zotero.Zotero(library_id, 'user', api_key)
-
-    logging.info("Fetching items from the Zotero library.")
-    items = zot.everything(zot.collection_items(
-        collection_id, itemType="conferencePaper || journalArticle || report || preprint"))
-    logging.info(f"Found {len(items)} items, sampling {args.sample_papers}.")
-
-    items = random.sample(items, args.sample_papers)
+    try:
+        papers = sample_papers(args.sample_papers)
+    except ZoteroError as exc:
+        logging.error("%s", exc)
+        return 1
 
     logging.info("Generating HTML.")
-    print(HEADER, file=args.output)
-
-    for item in items:
-        url = item['data']['url']
-        title = item['data']['title']
-        print(f"<h1><a href='{url}'>{title}</a></h1>", file=args.output)
-        print(f"<p><b>{format_authors(item['data']['creators'])}</b></p>", file=args.output)
-
-        print("<p>", file=args.output)
-        for tag in item['data']['tags']:
-            print(f"<span class='badge badge-primary'>{tag['tag']}</span>", file=args.output)
-        print("</p>", file=args.output)
-
-        if 'abstractNote' in item['data'] and item['data']['abstractNote']:
-            print('<div class="abstract">', file=args.output)
-            print(f"<b>Abstract:</b> {item['data']['abstractNote']}</div>", file=args.output)
-
-        note = zot.children(item['key'], itemType="note")
-        if note:
-            print('<div class="note">', file=args.output)
-            print(f"<b>My notes:</b> {note[0]['data']['note']}", file=args.output)
-            print("</div>", file=args.output)
-        print("<hr />", file=args.output)
-
-    print(FOOTER, file=args.output)
+    papers_to_html(papers, args.output)
     args.output.close()
 
     if args.output != sys.stdout and not args.no_open:
-        filename = args.output.name
-        webbrowser.open(filename, new=2, autoraise=False)
+        webbrowser.open(args.output.name, new=2, autoraise=False)
 
     logging.info("Done.")
+    return 0
+
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

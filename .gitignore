@@ -139,3 +139,6 @@ mini_positive.jsonl
 negative.jsonl
 positive.jsonl
 last_date
+reading_list.db
+scorer*/*
+vectorizer.pkl

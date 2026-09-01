@@ -9,14 +9,14 @@ logging.basicConfig(format='%(asctime)s %(message)s', level=logging.INFO)
 
 
 client = arxiv.Client(
-    page_size=800,
-    num_retries=5,
-    delay_seconds=5.0,
+    page_size=6_000,
+    num_retries=10,
+    delay_seconds=15.0,
 )
 
 search = arxiv.Search(
   query = "cs.CL",
-  max_results = 30000,
+  max_results = 40_000,
   sort_by = arxiv.SortCriterion.LastUpdatedDate
 )
 

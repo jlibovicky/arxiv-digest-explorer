@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>arXiv digest explorer</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+  <span id="progress">loading…</span>
+  <span class="keys">
+    <kbd>y</kbd> read <kbd>n</kbd> skip <kbd>l</kbd> later <kbd>z</kbd> zotero
+  </span>
+  <button id="zotero" type="button">Zotero reminder</button>
+  <button id="refresh" type="button">Refresh from arXiv</button>
+</header>
+
+<main id="card" hidden>
+  <div class="meta">
+    <a id="arxiv-id" href="#" target="_blank" rel="noopener"></a>
+    <span id="date"></span>
+    <span id="score" class="score"></span>
+  </div>
+  <h1 id="title"></h1>
+  <p id="authors" class="authors"></p>
+  <p id="comment" class="comment" hidden></p>
+  <p id="abstract" class="abstract"></p>
+  <div class="buttons">
+    <button id="yes" type="button" class="yes">Read it <kbd>y</kbd></button>
+    <button id="no" type="button" class="no">Not interested <kbd>n</kbd></button>
+    <button id="later" type="button" class="later">Remind me later <kbd>l</kbd></button>
+  </div>
+</main>
+
+<main id="empty" hidden>
+  <p class="empty">Nothing left on the reading list.</p>
+</main>
+
+<div id="zotero-overlay" hidden>
+  <div class="sheet">
+    <div class="sheet-head">
+      <h2>From your Zotero notes</h2>
+      <button id="zotero-again" type="button">Another sample</button>
+      <button id="zotero-close" type="button" class="close" aria-label="Close">
+        Close <kbd>Esc</kbd>
+      </button>
+    </div>
+    <div id="zotero-body"></div>
+  </div>
+</div>
+
+<div id="toast" hidden></div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
